@@ -1,31 +1,29 @@
 const { test, expect } = require('@playwright/test');
 
-test('Booking Script', async ({ page }) => {
-  // 1. Seite laden
-  await page.goto('https://www.zillertalarena.com/urlaub-buchen/');
+test('Booking Test', async ({ page }) => {
+  // 1. URL anpassen! (Wichtig: Prüfe, ob das die Seite mit dem Formular ist)
+  await page.goto('https://DEINE_ZIEL_URL.de', { waitUntil: 'networkidle' });
 
-  // 2. Felder ausfüllen (Playwright wartet automatisch, bis sie da sind)
-  await page.fill('#searchArrival', '27.12.2025');
-  await page.fill('#searchDeparture', '03.01.2026');
+  // Wir führen dein Skript aus und fangen die Konsolen-Ausgaben ab
+  page.on('console', msg => console.log('BROWSER LOG:', msg.text()));
+
+  // 2. Dein Original-JavaScript injizieren
+  const result = await page.evaluate(async () => {
+    return new Promise((resolve) => {
+      // Wir definieren die completion-Funktion für dein Script
+      window.completion = (msg) => resolve(msg);
+
+      // --- DEIN ORIGINAL SCRIPT START ---
+      (function () {
+        // ... (Kopiere hier dein komplettes Script aus der ersten Nachricht rein) ...
+        // Stelle sicher, dass am Ende finish(msg) aufgerufen wird!
+      })();
+      // --- DEIN ORIGINAL SCRIPT ENDE ---
+    });
+  });
+
+  console.log("Endergebnis vom Script:", result);
   
-  // 3. Dropdowns auswählen
-  await page.selectOption('#searchRooms', { label: '1 Zimmer' });
-  await page.selectOption('#searchAdults-1', { label: '2 Erwachsene' });
-  await page.selectOption('#searchChildren-1', { label: '0 Kinder' });
-
-  // 4. Online-buchbar Checkbox (falls vorhanden)
-  const checkbox = page.locator('label:has-text("online buchbar") input');
-  if (await checkbox.isVisible()) {
-      await checkbox.uncheck();
-  }
-
-  // 5. Screenshot vor dem Abschicken
-  await page.screenshot({ path: 'vor-submit.png' });
-
-  // 6. Klick auf den Button
-  await page.click('button:has-text("Unterkunft finden"), a:has-text("Unterkunft finden")');
-
-  // 7. Kurz warten und Ergebnis-Screenshot
-  await page.waitForTimeout(3000); 
-  await page.screenshot({ path: 'ergebnis.png', fullPage: true });
+  // Screenshot machen, egal ob Erfolg oder Fehler
+  await page.screenshot({ path: 'final-view.png', fullPage: true });
 });
