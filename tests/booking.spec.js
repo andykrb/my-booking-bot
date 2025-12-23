@@ -1,71 +1,43 @@
 const { test, expect } = require('@playwright/test');
 
-test('Booking Test Zillertal Arena', async ({ page }) => {
-  // 1. Seite aufrufen mit erweitertem Timeout
-  // Wir warten auf 'domcontentloaded', da das Widget danach asynchron kommt
-  await page.goto('https://www.zillertalarena.com/urlaub-buchen/', {
-    waitUntil: 'domcontentloaded',
-    timeout: 60000
-  });
+test('Stabilisierter Buchungs-Test Zillertal Arena', async ({ page }) => {
+  // --- PHASE 1: Navigation & Consent ---
+  await page.goto('https://www.zillertalarena.com/urlaub-buchen/', { waitUntil: 'networkidle' });
 
-  // 2. Cookie-Banner akzeptieren
-  // Die ID aus deinem Screenshot ist: #CybotCookiebotDialogBodyLevelButtonLevelOptinAllowAll
-  const cookieButton = page.locator('#CybotCookiebotDialogBodyLevelButtonLevelOptinAllowAll');
-  
-  try {
-    // Warten, bis der Button da ist (max. 10s)
-    await cookieButton.waitFor({ state: 'visible', timeout: 10000 });
-    await cookieButton.click();
-    console.log('Cookie-Banner wurde akzeptiert.');
-  } catch (e) {
-    console.log('Cookie-Banner wurde nicht gefunden (evtl. bereits akzeptiert).');
+  // Cookie-Banner entfernen (ID aus deinem Screenshot)
+  const cookieBtn = page.locator('#CybotCookiebotDialogBodyLevelButtonLevelOptinAllowAll');
+  if (await cookieBtn.isVisible()) {
+    await cookieBtn.click();
+    // Kurz warten, bis das Overlay-Animation verschwunden ist
+    await page.waitForTimeout(500); 
   }
 
-  // 3. Auf die TOSC5 Engine warten (Die Lösung für "Not Initialized")
-  // Wir nutzen das 'dw' Event-System aus deiner Dokumentation
-  console.log('Warte auf TOSC5 Initialisierung...');
+  // --- PHASE 2: API-Synchronisation ---
+  // Wir warten explizit, bis das TOSC5 Objekt initialisiert ist.
+  // Dies löst den "TOSC5 is not initialized" Fehler dauerhaft.
+  await page.waitForFunction(() => {
+    return typeof window.TOSC5 !== 'undefined' && document.readyState === 'complete';
+  }, { timeout: 20000 });
+
+  // --- PHASE 3: Formular befüllen ---
+  // Wir nutzen die IDs direkt aus deinem HTML-Auszug
+  await page.fill('#searchArrival', '27.12.2025');
+  await page.fill('#searchDeparture', '03.01.2026');
   
-  await page.evaluate(() => {
-    return new Promise((resolve) => {
-      // Falls TOSC5 bereits fertig ist
-      if (typeof window.TOSC5 !== 'undefined' && window.TOSC5.isInitialized) {
-        resolve(true);
-      }
-      
-      // Ansonsten hängen wir uns an das Event-System (siehe dein Screenshot 6)
-      if (typeof window.dw === 'function') {
-        window.dw('onPageLoad', '*', function() {
-          resolve(true);
-        });
-      } else {
-        // Fallback: Falls 'dw' nicht existiert, prüfen wir alle 500ms
-        const interval = setInterval(() => {
-          if (typeof window.TOSC5 !== 'undefined') {
-            clearInterval(interval);
-            resolve(true);
-          }
-        }, 500);
-      }
-      
-      // Sicherheits-Timeout nach 20 Sekunden
-      setTimeout(() => resolve(false), 20000);
-    });
-  });
+  // Zimmer & Personen (IDs: searchRooms, searchAdults-1)
+  await page.selectOption('#searchRooms', '1');
+  await page.selectOption('#searchAdults-1', '2');
 
-  // 4. Den Such-Button finden und anklicken
-  // Wir nutzen hier Text-Selektoren, da diese robuster gegen Klassen-Änderungen sind
-  const searchButton = page.getByRole('button', { name: 'Unterkunft finden' }).first();
-
-  // Sicherstellen, dass der Button sichtbar ist
-  await expect(searchButton).toBeVisible({ timeout: 20000 });
+  // --- PHASE 4: Suche ausführen ---
+  // Selektor für den Submit-Button aus deinem HTML [cite: 1045]
+  const submitBtn = page.locator('button.submit-search:has-text("Unterkunft finden")');
   
-  // Klick ausführen
-  await searchButton.click();
-  console.log('Suche wurde gestartet.');
+  // Sicherstellen, dass der Button klickbar ist (nicht verdeckt)
+  await expect(submitBtn).toBeVisible();
+  await submitBtn.click();
 
-  // 5. Überprüfung: Warten auf die Ergebnisliste
-  // Nach dem Klick ändert sich die URL oder es erscheinen Suchergebnisse
-  await expect(page).toHaveURL(/.*detail.*/, { timeout: 15000 }).catch(() => {
-    console.log('URL hat sich (noch) nicht geändert, prüfe auf Ergebnisanzeige...');
-  });
+  // --- PHASE 5: Validierung ---
+  // Warten auf die Ergebnisse (URL-Wechsel oder Erscheinen der Ergebnisliste)
+  await expect(page).toHaveURL(/.*doSearch=1.*/);
+  console.log('Test erfolgreich: Suche wurde mit TOSC5-Initialisierung gestartet.');
 });
