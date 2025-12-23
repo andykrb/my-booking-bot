@@ -1,44 +1,32 @@
 const { test, expect } = require('@playwright/test');
 
-test('Strukturierter Booking-Test via Network-Interception', async ({ page }) => {
-  // 1. Definition der Netzwerk-Erwartung
-  // Wir warten auf die Konfigurations-Datei oder das Haupt-Script von Feratel/Deskline
-  const toscResponsePromise = page.waitForResponse(response => 
-    response.url().includes('feratel.com') || response.url().includes('deskline')
-  );
+test('Strukturierter Booking-Test (Actionability-Solution)', async ({ page }) => {
+  await page.goto('https://www.zillertalarena.com/urlaub-buchen/', { waitUntil: 'networkidle' });
 
-  // 2. Seite laden
-  await page.goto('https://www.zillertalarena.com/urlaub-buchen/');
-
-  // 3. Cookie-Banner (Actionability nutzen)
-  // Playwright prüft automatisch: Visible, Stable, Enabled, Not Obscured.
+  // 1. Cookie-Banner entfernen
   const cookieBtn = page.locator('#CybotCookiebotDialogBodyLevelButtonLevelOptinAllowAll');
   await cookieBtn.click();
 
-  // 4. Synchronisation mit der Engine (Kein Try & Error mehr)
-  // Wir warten darauf, dass die Netzwerk-Antwort von Feratel eintrifft.
-  // Erst dann ist die Engine technisch in der Lage, Befehle zu verarbeiten.
-  await toscResponsePromise;
-  console.log('Netzwerk-Check: Buchungs-Engine geladen.');
+  // 2. Das korrekte Ankunfts-Feld finden
+  // Wir suchen nach dem Platzhalter "Ankunft", aber NUR wenn das Element sichtbar ist.
+  // Playwright ignoriert so automatisch das versteckte #searchArrival.
+  const arrivalVisible = page.locator('input[placeholder="Ankunft"]').filter({ visible: true });
+  const departureVisible = page.locator('input[placeholder="Abreise"]').filter({ visible: true });
 
-  // 5. Interaktion mit Actionability
-  // Wir definieren Locators basierend auf deinem HTML
-  const arrivalInput = page.locator('#searchArrival');
-  const adultsSelect = page.locator('#searchAdults-1');
-  const submitButton = page.locator('button.submit-search');
+  // 3. Interaktion mit dem Kalender
+  // Da es oft ein Datepicker ist, reicht einfaches 'fill' manchmal nicht. 
+  // Wir klicken erst, um den Fokus zu setzen.
+  await arrivalVisible.click();
+  
+  // Wir versuchen das Datum zu tippen. 
+  // Falls das Script hier wieder hängt, ist es ein reiner Kalender-Picker ohne Tipp-Funktion.
+  await arrivalVisible.fill('27.12.2025');
+  await departureVisible.fill('03.01.2026');
 
-  // Playwright wartet hier AUTOMATISCH, bis das Feld:
-  // - Attached ist
-  // - Visible ist
-  // - Stable ist
-  // - Enabled ist
-  // - Nicht mehr vom Cookie-Banner verdeckt wird (da wir es oben geklickt haben)
-  await arrivalInput.fill('27.12.2025');
-  await adultsSelect.selectOption('2');
+  // 4. Submit-Button (Ebenfalls gefiltert auf Sichtbarkeit)
+  const submitBtn = page.locator('button.submit-search').filter({ visible: true });
+  await submitBtn.click();
 
-  // 6. Aktion ausführen
-  await submitButton.click();
-
-  // 7. Ergebnis prüfen
+  // 5. Erfolgskontrolle
   await expect(page).toHaveURL(/.*doSearch=1.*/);
 });
