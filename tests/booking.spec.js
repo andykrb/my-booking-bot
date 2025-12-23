@@ -2,7 +2,7 @@ const { test, expect } = require('@playwright/test');
 
 test('Booking Script', async ({ page }) => {
   // 1. Seite laden
-  await page.goto('https://DEINE_URL_HIER.de');
+  await page.goto('https://www.zillertalarena.com/urlaub-buchen/');
 
   // 2. Felder ausfüllen (Playwright wartet automatisch, bis sie da sind)
   await page.fill('#searchArrival', '27.12.2025');
