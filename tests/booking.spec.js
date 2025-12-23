@@ -2,7 +2,7 @@ const { test, expect } = require('@playwright/test');
 
 test('Booking Test', async ({ page }) => {
   // 1. URL anpassen! (Wichtig: Prüfe, ob das die Seite mit dem Formular ist)
-  await page.goto('https://DEINE_ZIEL_URL.de', { waitUntil: 'networkidle' });
+  await page.goto('https://www.zillertalarena.com/urlaub-buchen/', { waitUntil: 'networkidle' });
 
   // Wir führen dein Skript aus und fangen die Konsolen-Ausgaben ab
   page.on('console', msg => console.log('BROWSER LOG:', msg.text()));
