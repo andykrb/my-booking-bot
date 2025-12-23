@@ -1,37 +1,51 @@
 const { test, expect } = require('@playwright/test');
 
 test('Booking Test', async ({ page }) => {
-  // 1. Die Zielseite aufrufen
-  await page.goto('https://www.zillertalarena.com/urlaub-buchen/');
-
-  // 2. Cookie-Banner akzeptieren
-  // Wir verwenden die ID des "Alle zulassen"-Buttons aus deinem DOM-Screenshot
-  const cookieButton = page.locator('#CybotCookiebotDialogBodyLevelButtonLevelOptinAllowAll');
-  
-  try {
-    // Warten, bis der Button sichtbar ist (max. 5 Sekunden), um Timeouts zu vermeiden
-    await cookieButton.waitFor({ state: 'visible', timeout: 5000 });
-    await cookieButton.click();
-    console.log('Cookie-Banner erfolgreich akzeptiert.');
-  } catch (e) {
-    // Falls das Banner nicht erscheint (z.B. durch Cookies im Kontext), fährt der Test fort
-    console.log('Cookie-Banner nicht erschienen oder bereits akzeptiert.');
-  }
-
-  // 3. Warten auf Initialisierung der Skripte
-  // Da deine Console "TOSC5 is not initialized" anzeigte, warten wir hier explizit
-  // Dies verhindert, dass das nachfolgende 'evaluate' in einen Timeout läuft.
-  await page.waitForFunction(() => typeof window.TOSC5 !== 'undefined', { timeout: 10000 });
-
-  // 4. Dein ursprünglicher Evaluate-Befehl (zuvor Zeile 11)
-  // Ich habe hier einen Platzhalter eingefügt – setze hier deine spezifische Logik ein.
-  const result = await page.evaluate(async () => {
-    // FÜGE HIER DEINEN CODE AUS ZEILE 11 EIN
-    // Beispiel: return document.querySelector('.some-class').innerText;
-    return true; 
+  // 1. Die Seite aufrufen
+  // Wir warten, bis der grundlegende HTML-Load abgeschlossen ist
+  await page.goto('https://www.zillertalarena.com/urlaub-buchen/', {
+    waitUntil: 'domcontentloaded'
   });
 
-  // 5. Beispielhafte Assertion, um den Erfolg zu prüfen
-  // await expect(page).toHaveURL(/urlaub-buchen/);
-  console.log('Test erfolgreich bis nach dem Evaluate-Schritt ausgeführt.');
+  // 2. Cookie-Banner akzeptieren
+  // ID aus deinem Screenshot: #CybotCookiebotDialogBodyLevelButtonLevelOptinAllowAll
+  const cookieButton = page.locator('#CybotCookiebotDialogBodyLevelButtonLevelOptinAllowAll');
+
+  try {
+    // Warten, bis der Button sichtbar ist (Timeout 10s)
+    await cookieButton.waitFor({ state: 'visible', timeout: 10000 });
+    await cookieButton.click();
+    console.log('Cookie-Banner wurde geklickt.');
+  } catch (e) {
+    console.log('Cookie-Banner nicht gefunden oder bereits akzeptiert.');
+  }
+
+  // 3. Warten auf das Laden der Scripte
+  // Nach dem Cookie-Klick laden oft viele Tracking- und Funktions-Scripte nach.
+  // Wir warten, bis das Netzwerk für einen Moment zur Ruhe kommt.
+  await page.waitForLoadState('networkidle');
+
+  // 4. Auf die Buchungs-Engine (TOSC5) warten
+  // Dein Screenshot zeigt einen Timeout bei "Wait for function". 
+  // Wir prüfen hier explizit, ob das Objekt auf dem Window existiert.
+  await page.waitForFunction(() => {
+    // Wir prüfen auf TOSC5, da deine Konsole "TOSC5 is not initialized" meldete
+    return typeof window.TOSC5 !== 'undefined';
+  }, { timeout: 30000 });
+
+  // 5. Die eigentliche Test-Logik (vorher Zeile 24)
+  // Hier führen wir den Code aus, der zuvor den Timeout verursacht hat.
+  const setupStatus = await page.evaluate(() => {
+    // Debug-Info in die Playwright-Konsole zurückgeben
+    return {
+      toscExists: typeof window.TOSC5 !== 'undefined',
+      url: window.location.href
+    };
+  });
+
+  console.log('Setup Status:', setupStatus);
+
+  // Beispiel: Überprüfen, ob ein bestimmtes Element der Buchungsmaske nun da ist
+  // Ersetze '.search-button' durch einen echten Selector deiner Seite
+  // await expect(page.locator('.search-button')).toBeVisible();
 });
