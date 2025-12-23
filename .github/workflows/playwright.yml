@@ -15,10 +15,13 @@ jobs:
       - name: Install Playwright Browsers
         run: npx playwright install --with-deps chromium
       - name: Run Test
-        run: npx playwright test
-      - name: Upload Screenshots
+        run: npx playwright test --trace on # Trace einschalten!
+
+      - name: Upload Results
         uses: actions/upload-artifact@v4
-        if: always()
+        if: always() # Wichtig: Immer hochladen, auch wenn es crasht!
         with:
-          name: screenshots
-          path: ./*.png
+          name: debug-data
+          path: |
+            test-results/
+            *.png
