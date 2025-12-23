@@ -1,0 +1,6 @@
+{
+  "name": "playwright-automation",
+  "devDependencies": {
+    "@playwright/test": "latest"
+  }
+}
